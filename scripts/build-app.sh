@@ -34,7 +34,7 @@ staged_app="$staging_dir/Шёпот.app"
 mkdir -p "$staged_app/Contents/MacOS" "$staged_app/Contents/Resources"
 cp "$binary_dir/Shepot" "$staged_app/Contents/MacOS/Shepot"
 cp Resources/Info.plist "$staged_app/Contents/Info.plist"
-if [[ ! -f .build/AppIcon.icns ]]; then
+if [[ ! -f .build/AppIcon.icns || scripts/make-icon.swift -nt .build/AppIcon.icns ]]; then
     xcrun swift scripts/make-icon.swift
     iconutil -c icns .build/AppIcon.iconset -o .build/AppIcon.icns
 fi
