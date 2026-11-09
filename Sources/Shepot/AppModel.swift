@@ -189,7 +189,7 @@ final class AppModel: ObservableObject {
             prepared = pending
             if useAI { beginStep(.editing, message: backend == .codexLuna ? "Codex Luna редактирует текст…" : "AI редактирует текст…") }
             do {
-                let edited = try await DictationEditing.run(base: base, useAI: useAI, style: style) {
+                let edited = try await DictationEditing.run(base: base, useAI: useAI, style: style, timeout: backend.timeout) {
                     switch backend {
                     case .codexLuna:
                         return try await CodexEditor().edit(raw, style: style, dictionary: dictionary, executablePath: codexPath)
@@ -210,6 +210,7 @@ final class AppModel: ObservableObject {
     private func deliverPrepared(_ edited: EditedDictation, pending: PreparedDictation, generation id: UUID) async {
         guard generation == id, !Task.isCancelled else { return }
         lastText = edited.text
+        if !edited.notice.isEmpty { logger.error("AI fallback: \(edited.notice, privacy: .public)") }
         if let historyID = pending.historyID { history.update(historyID, text: edited.text, usedAI: edited.usedAI) }
         beginStep(.insertion, message: "Ввожу текст…")
         let delivery = await inserter.deliver(edited.text, to: pending.destination)
@@ -276,7 +277,7 @@ final class AppModel: ObservableObject {
     func checkCodex() {
         guard !codexChecking else { return }
         codexChecking = true
-        let path = settings.codexPath
+        let path = CodexEditor.nativeExecutable(for: settings.codexPath)
         Task { @MainActor in
             defer { codexChecking = false }
             guard FileManager.default.isExecutableFile(atPath: path) else {
@@ -286,7 +287,14 @@ final class AppModel: ObservableObject {
             do {
                 let status = try await CommandRunner().run(executable: URL(fileURLWithPath: path), arguments: ["login", "status"], timeout: 8)
                 let output = String(decoding: status.output + status.error, as: UTF8.self)
-                codexStatus = status.status == 0 ? (output.contains("ChatGPT") ? "Установлен · вход через ChatGPT · Luna" : "Установлен · вход выполнен · Luna") : "Codex установлен. Выполните codex login в Терминале."
+                if status.status == 0 {
+                    codexStatus = output.contains("ChatGPT") ? "Установлен · вход через ChatGPT · Luna" : "Установлен · вход выполнен · Luna"
+                } else if output.lowercased().contains("not logged in") || output.lowercased().contains("login") {
+                    codexStatus = "Codex установлен. Выполните codex login в Терминале."
+                } else {
+                    let detail = CodexEditor.diagnostic(status)
+                    codexStatus = "Codex не запускается (\(status.status))" + (detail.isEmpty ? "." : ": \(detail)")
+                }
             } catch { codexStatus = error.localizedDescription }
         }
     }
@@ -348,7 +356,7 @@ final class AppModel: ObservableObject {
             defer { editorBusy = false }
             let base = TextProcessing.clean(TextProcessing.applyDictionary(raw, entries: entries), style: style)
             do {
-                let edited = try await DictationEditing.run(base: base, useAI: ai, style: style) {
+                let edited = try await DictationEditing.run(base: base, useAI: ai, style: style, timeout: backend.timeout) {
                     switch backend {
                     case .codexLuna:
                         return try await CodexEditor().edit(raw, style: style, dictionary: entries, executablePath: codexPath)

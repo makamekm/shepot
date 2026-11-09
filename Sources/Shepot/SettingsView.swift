@@ -101,7 +101,7 @@ struct SettingsView: View {
             }
             Text("API оплачивается отдельно. Ключ хранится в Связке ключей macOS.").font(.system(size: 11)).foregroundStyle(Palette.muted).lineSpacing(3)
             }
-            Text("На редактуру отправляется распознанный текст и словарь. Ожидание AI — до 12 секунд. Если AI недоступен, вводится текст с базовой пунктуацией. Во время редактуры Control вставляет без ожидания AI. Буфер обмена не используется.").font(.system(size: 11)).foregroundStyle(Palette.muted).lineSpacing(3)
+            Text("На редактуру отправляется распознанный текст и словарь. Ожидание AI — до \(Int(settings.editorBackend.timeout)) секунд. Если AI недоступен, вводится текст с базовой пунктуацией. Во время редактуры Control вставляет без ожидания AI. Буфер обмена не используется.").font(.system(size: 11)).foregroundStyle(Palette.muted).lineSpacing(3)
             Text("Без AI: базовая пунктуация, команды «новый абзац», «новая строка» и ваш словарь. Переформулирование и исправление грамматики доступны с AI.").font(.system(size: 10)).foregroundStyle(Palette.muted).lineSpacing(3)
         }.onAppear { app.checkCodex() }
         card("04", "Повседневные мелочи", "Шёпот остаётся в строке меню, когда вы закрываете окно.") {

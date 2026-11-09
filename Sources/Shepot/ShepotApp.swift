@@ -4,6 +4,8 @@ import AppKit
 @main
 enum ShepotApp {
     @MainActor static func main() {
+        // Writing to a child's stdin after it exited must fail with EPIPE, not kill the app.
+        signal(SIGPIPE, SIG_IGN)
         let app = NSApplication.shared
         #if DEBUG
         if let index = CommandLine.arguments.firstIndex(of: "--render-hud-preview"), CommandLine.arguments.count > index + 1 {
